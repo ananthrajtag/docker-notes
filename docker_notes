@@ -1,0 +1,275 @@
+# run a docker container in interactive mode. Hitting CTRL+C will close the container.
+docker container run --publish 80:80 nginx
+# run the container in the detatched mode. container will run in the background.
+docker container run --publish 80:80 --detach nginx
+# run a named instance in docker. You can set up the name of the server you want to run.
+docker container run --publish 80:80 --detach --name kumarrav-nginx1 nginx
+# List of running and stopped containers.
+docker container ls -a
+# See the logs of the running container. If we've used the detatch switch, this will be useful.
+docker container logs <containerid>
+# see the top command output of the runnning container. Top command of the internally running process.
+docker container top <containerid>
+# remove the list of containers.
+docker container rm <containerid1> <containerid2> <containerid3> ...
+# forcefully remove the running container
+docker container rm -f <containerid1> <containerid2> <containerid3> ...
+
+
+----
+# container applications running as processes on the physical machine.
+➜  src_git docker image list
+REPOSITORY                       TAG                 IMAGE ID            CREATED             SIZE
+fedora                           latest              26ffec5b4a8a        3 days ago          275MB
+postgres                         latest              4dcf1ba7e5e2        9 days ago          312MB
+mcr.microsoft.com/powershell     latest              4ebab174c729        10 days ago         364MB
+nginx                            latest              7042885a156a        3 weeks ago         109MB
+mcr.microsoft.com/mssql/server   latest              885d07287041        4 months ago        1.45GB
+➜  src_git docker container run --publish 80:80 --detach --name kumarrav-nginx1 nginx
+3e0bfeeca4fe0f18ae7037083ea734bc91e7c72c2320394808e381ca19d630ec
+➜  src_git ps auxf | grep nginx | grep -v grep
+root      4726  0.2  0.0  32652  5092 ?        Ss   01:03   0:00      \_ nginx: master process nginx -g daemon off;
+101       4763  0.0  0.0  33108  2280 ?        S    01:03   0:00          \_ nginx: worker process
+➜  src_git docker container stop 3e0bfeeca4fe0f18ae7037083ea734bc91e7c72c2320394808e381ca19d630ec
+3e0bfeeca4fe0f18ae7037083ea734bc91e7c72c2320394808e381ca19d630ec
+➜  src_git docker container ls -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                     PORTS               NAMES
+3e0bfeeca4fe        nginx               "nginx -g 'daemon of…"   52 seconds ago      Exited (0) 6 seconds ago                       kumarrav-nginx1
+➜  src_git ps auxf | grep nginx | grep -v grep                                                   
+----
+# Error 137 reproduction. You have to kill the process running in the host process tree and container will exit with error 137.
+
+➜  src_git docker container ls -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                     PORTS               NAMES
+3e0bfeeca4fe        nginx               "nginx -g 'daemon of…"   52 seconds ago      Exited (0) 6 seconds ago                       kumarrav-nginx1
+➜  src_git ps auxf | grep nginx | grep -v grep                                                   
+➜  src_git docker container run --publish 80:80 --detach --name kumarrav-nginx1 nginx            
+docker: Error response from daemon: Conflict. The container name "/kumarrav-nginx1" is already in use by container "3e0bfeeca4fe0f18ae7037083ea734bc91e7c72c2320394808e381ca19d630ec". You have to remove (or rename) that container to be able to reuse that name.
+See 'docker run --help'.
+➜  src_git docker container start 3e0bfeeca4fe
+3e0bfeeca4fe
+➜  src_git docker container ls -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                NAMES
+3e0bfeeca4fe        nginx               "nginx -g 'daemon of…"   2 minutes ago       Up 4 seconds        0.0.0.0:80->80/tcp   kumarrav-nginx1
+➜  src_git ps auxf | grep nginx | grep -v grep                                       
+root      4937  0.2  0.0  32652  5188 ?        Ss   01:06   0:00      \_ nginx: master process nginx -g daemon off;
+101       4975  0.0  0.0  33108  3020 ?        S    01:06   0:00          \_ nginx: worker process
+➜  src_git sudo kill -9 4937 4975
+[sudo] password for kumarrav: 
+➜  src_git ps auxf | grep nginx | grep -v grep
+➜  src_git docker container ls -a             
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                        PORTS               NAMES
+3e0bfeeca4fe        nginx               "nginx -g 'daemon of…"   3 minutes ago       Exited (137) 12 seconds ago                       kumarrav-nginx1
+➜  src_git 
+
+----
+
+Exercise - 1
+# Run 3 containers with different posts and start mysql with env variables. Pick the root password from the logs.
+
+➜  src_git docker image ls -a
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+➜  src_git docker container ls -a
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+➜  src_git docker container run --publish 80:80 --detach --name kumarrav-nginx1 nginx
+Unable to find image 'nginx:latest' locally
+latest: Pulling from library/nginx
+177e7ef0df69: Pull complete 
+ea57c53235df: Pull complete 
+bbdb1fbd4a86: Pull complete 
+Digest: sha256:b543f6d0983fbc25b9874e22f4fe257a567111da96fd1d8f1b44315f1236398c
+Status: Downloaded newer image for nginx:latest
+6f76f3cdf988c861ccd0f5b7fdf8280c38c46d35271eb587046bf856b3ec1ee9
+➜  src_git docker container run --publish 8080:80 --detach --name kumarrav-httpd1 httpd
+Unable to find image 'httpd:latest' locally
+latest: Pulling from library/httpd
+177e7ef0df69: Already exists 
+65e7b631411e: Pull complete 
+3249ef8b9272: Pull complete 
+43ed8fedd0f6: Pull complete 
+02d3f33bda9d: Pull complete 
+Digest: sha256:a613d8f1dbb35b18cdf5a756d2ea0e621aee1c25a6321b4a05e6414fdd3c1ac1
+Status: Downloaded newer image for httpd:latest
+7a8679bd7c47295b385b9b8d455c54937a17f35b24e2368d5d3ad430db26f811
+➜  src_git docker container run --publish 3306:3306 --detach --env MYSQL_RANDOM_ROOT_PASSWORD=yes --name kumarrav-mysql1 mysql 
+Unable to find image 'mysql:latest' locally
+latest: Pulling from library/mysql
+177e7ef0df69: Already exists 
+cac25352c4c8: Pull complete 
+8585afabb40a: Pull complete 
+1e4af4996053: Pull complete 
+c326522894da: Pull complete 
+9020d6b6b171: Pull complete 
+55eb37ec6e5f: Pull complete 
+37f3f3d72fbd: Pull complete 
+03f098d64268: Pull complete 
+46a52a54cfe9: Pull complete 
+202bc662895d: Pull complete 
+46014f07b258: Pull complete 
+Digest: sha256:196c04e1944c5e4ea3ab86ae5f78f697cf18ee43865f25e334a6ffb1dbea81e6
+Status: Downloaded newer image for mysql:latest
+3bc5e080870ee11bf051e03a6ffcbf637ff57a417b9b37c3fd518acb46311314
+➜  src_git docker container logs 3bc5e080870ee11bf051e03a6ffcbf637ff57a417b9b37c3fd518acb46311314
+Initializing database
+2019-01-20T19:53:01.261294Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2019-01-20T19:53:01.261377Z 0 [System] [MY-013169] [Server] /usr/sbin/mysqld (mysqld 8.0.13) initializing of server in progress as process 29
+2019-01-20T19:53:05.918057Z 5 [Warning] [MY-010453] [Server] root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option.
+2019-01-20T19:53:07.295705Z 5 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.295944Z 5 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296006Z 5 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296148Z 5 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296263Z 5 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296322Z 5 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296457Z 5 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296783Z 5 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296844Z 5 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:09.428473Z 0 [System] [MY-013170] [Server] /usr/sbin/mysqld (mysqld 8.0.13) initializing of server has completed
+Database initialized
+MySQL init process in progress...
+2019-01-20T19:53:11.825995Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2019-01-20T19:53:11.826090Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.13) starting as process 80
+mbind: Operation not permitted
+2019-01-20T19:53:12.546686Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2019-01-20T19:53:12.553972Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+2019-01-20T19:53:12.579327Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579389Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579415Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579438Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579522Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579594Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579631Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.583592Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.583638Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.592478Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.13'  socket: '/var/run/mysqld/mysqld.sock'  port: 0  MySQL Community Server - GPL.
+2019-01-20T19:53:12.611773Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/run/mysqld/mysqlx.sock'
+➜  src_git docker container logs 3bc5e080870ee11bf051e03a6ffcbf637ff57a417b9b37c3fd518acb46311314
+Initializing database
+2019-01-20T19:53:01.261294Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2019-01-20T19:53:01.261377Z 0 [System] [MY-013169] [Server] /usr/sbin/mysqld (mysqld 8.0.13) initializing of server in progress as process 29
+2019-01-20T19:53:05.918057Z 5 [Warning] [MY-010453] [Server] root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option.
+2019-01-20T19:53:07.295705Z 5 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.295944Z 5 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296006Z 5 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296148Z 5 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296263Z 5 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296322Z 5 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296457Z 5 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296783Z 5 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:07.296844Z 5 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:09.428473Z 0 [System] [MY-013170] [Server] /usr/sbin/mysqld (mysqld 8.0.13) initializing of server has completed
+Database initialized
+MySQL init process in progress...
+2019-01-20T19:53:11.825995Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2019-01-20T19:53:11.826090Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.13) starting as process 80
+mbind: Operation not permitted
+2019-01-20T19:53:12.546686Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2019-01-20T19:53:12.553972Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+2019-01-20T19:53:12.579327Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579389Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579415Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579438Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579522Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579594Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.579631Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.583592Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.583638Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:12.592478Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.13'  socket: '/var/run/mysqld/mysqld.sock'  port: 0  MySQL Community Server - GPL.
+2019-01-20T19:53:12.611773Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/run/mysqld/mysqlx.sock'
+Warning: Unable to load '/usr/share/zoneinfo/iso3166.tab' as time zone. Skipping it.
+Warning: Unable to load '/usr/share/zoneinfo/leap-seconds.list' as time zone. Skipping it.
+Warning: Unable to load '/usr/share/zoneinfo/zone.tab' as time zone. Skipping it.
+Warning: Unable to load '/usr/share/zoneinfo/zone1970.tab' as time zone. Skipping it.
+GENERATED ROOT PASSWORD: eizaob5Utahwei7raechae9cu2euvood
+2019-01-20T19:53:14.533477Z 10 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533516Z 10 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533616Z 10 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533639Z 10 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533668Z 10 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533678Z 10 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533693Z 10 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533855Z 10 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:14.533868Z 10 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+
+2019-01-20T19:53:16.167604Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.0.13)  MySQL Community Server - GPL.
+
+MySQL init process done. Ready for start up.
+
+2019-01-20T19:53:16.446245Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2019-01-20T19:53:16.446327Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.13) starting as process 1
+2019-01-20T19:53:17.041420Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2019-01-20T19:53:17.049019Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+2019-01-20T19:53:17.055541Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.055576Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.055597Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.055615Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.055652Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.055667Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.055684Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.058226Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.058245Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2019-01-20T19:53:17.062089Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.13'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+2019-01-20T19:53:17.150301Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/run/mysqld/mysqlx.sock' bind-address: '::' port: 33060
+
+----
+# Connect to docker instances using "run -it" and "exec -it"
+
+run -it = Will start the container and stop upon shell exit.
+exec -it = Will connect to the existing container. Wont stop the container upon shell exit.
+
+Tip : If you dont specify the command to run after starting the container with "run -it" option, the shell will never open.
+
+➜  src_git docker container ls -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                               NAMES
+5e7574f60904        mysql               "docker-entrypoint.s…"   17 minutes ago      Up 17 minutes       0.0.0.0:3306->3306/tcp, 33060/tcp   mysql1
+e009230aaa63        nginx               "nginx -g 'daemon of…"   18 minutes ago      Up 18 minutes       80/tcp                              nginx1
+➜  src_git docker container run -it --publish 90:80 --name nginx2 nginx
+
+^C%                                                                                                                                                                     ➜  src_git docker container ls -a                                      
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                    PORTS                               NAMES
+9e1d3ca76b77        nginx               "nginx -g 'daemon of…"   25 seconds ago      Exited (0) 1 second ago                                       nginx2
+5e7574f60904        mysql               "docker-entrypoint.s…"   18 minutes ago      Up 18 minutes             0.0.0.0:3306->3306/tcp, 33060/tcp   mysql1
+e009230aaa63        nginx               "nginx -g 'daemon of…"   19 minutes ago      Up 19 minutes             80/tcp                              nginx1
+➜  src_git docker container run -it --publish 90:80 --name nginx2 nginx bash
+docker: Error response from daemon: Conflict. The container name "/nginx2" is already in use by container "9e1d3ca76b77ae9a245f633205ccdef46f32e654f2eec189d15a3c72e466914f". You have to remove (or rename) that container to be able to reuse that name.
+See 'docker run --help'.
+➜  src_git docker container rm 9e1d3ca76b77
+9e1d3ca76b77
+➜  src_git docker container run -it --publish 90:80 --name nginx2 nginx bash
+root@4d7c45f8b779:/# ls
+bin  boot  dev	etc  home  lib	lib64  media  mnt  opt	proc  root  run  sbin  srv  sys  tmp  usr  var
+root@4d7c45f8b779:/# exit
+exit
+➜  src_git docker container ls -a                                           
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                     PORTS                               NAMES
+4d7c45f8b779        nginx               "bash"                   14 seconds ago      Exited (0) 4 seconds ago                                       nginx2
+5e7574f60904        mysql               "docker-entrypoint.s…"   19 minutes ago      Up 19 minutes              0.0.0.0:3306->3306/tcp, 33060/tcp   mysql1
+e009230aaa63        nginx               "nginx -g 'daemon of…"   20 minutes ago      Up 20 minutes              80/tcp                              nginx1
+➜  src_git docker container run 4d7c45f8b779                                
+Unable to find image '4d7c45f8b779:latest' locally
+docker: Error response from daemon: pull access denied for 4d7c45f8b779, repository does not exist or may require 'docker login'.
+See 'docker run --help'.
+➜  src_git docker container run nginx2
+Unable to find image 'nginx2:latest' locally
+docker: Error response from daemon: pull access denied for nginx2, repository does not exist or may require 'docker login'.
+See 'docker run --help'.
+➜  src_git docker container start nginx2
+nginx2
+➜  src_git docker container ls -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED              STATUS              PORTS                               NAMES
+4d7c45f8b779        nginx               "bash"                   About a minute ago   Up 11 seconds       0.0.0.0:90->80/tcp                  nginx2
+5e7574f60904        mysql               "docker-entrypoint.s…"   20 minutes ago       Up 20 minutes       0.0.0.0:3306->3306/tcp, 33060/tcp   mysql1
+e009230aaa63        nginx               "nginx -g 'daemon of…"   21 minutes ago       Up 21 minutes       80/tcp                              nginx1
+➜  src_git docker container exec -it nginx2 bash
+root@4d7c45f8b779:/# ls
+bin  boot  dev	etc  home  lib	lib64  media  mnt  opt	proc  root  run  sbin  srv  sys  tmp  usr  var
+root@4d7c45f8b779:/# exit
+exit
+➜  src_git docker container ls -a               
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                               NAMES
+4d7c45f8b779        nginx               "bash"                   2 minutes ago       Up 43 seconds       0.0.0.0:90->80/tcp                  nginx2
+5e7574f60904        mysql               "docker-entrypoint.s…"   21 minutes ago      Up 21 minutes       0.0.0.0:3306->3306/tcp, 33060/tcp   mysql1
+e009230aaa63        nginx               "nginx -g 'daemon of…"   22 minutes ago      Up 22 minutes       80/tcp                              nginx1
+➜  src_git 
+
+----
+
