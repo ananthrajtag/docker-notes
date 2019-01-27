@@ -1,0 +1,15 @@
+# Installing docker and verifying the installs. 
+# Best practices when installing docker and permission management.
+# Exploring "docker" commands. What are management commands and run commands. How to get help ?
+# First usage of docker. How to pull an image from docker hub ?
+# Importance of tags when pulling images.
+# Explain different fileds for the command "docker images". Explain the cool part about the image size.
+# How to run a container from an image.
+# Exploring differnt fields of the command "docker container ls -a"
+# Demo on starting nginx container.
+# How to start container in different modes (interactive, detatch, custom)
+# Modify different switches to lauch the container and verify the changes.
+# How to view logs of the running container.
+# Process management of the running containers. 
+# How to login into containers to manage them from the inside. Difference between run -it and exec -it commands.
+# Introduction to docker networking.
